@@ -53,6 +53,10 @@ h2{font-size:20px;margin:0 0 10px}
   </label>
   <p class="err" id="nameErr">Bitte gib deinen Vor- und Nachnamen ein.</p>
 
+  <label class="f">Initialen <span class="note">(optional)</span>
+    <input type="text" id="ini" maxlength="4" autocapitalize="characters" autocomplete="off" placeholder="z. B. MM" style="text-transform:uppercase;max-width:140px">
+  </label>
+
   <h2>Artikel</h2>
   <div id="list"></div>
   <p class="note">Farbe ist je Artikel fest vorgegeben. Wer einen Artikel in zwei Größen braucht, schickt einfach eine zweite Bestellung.</p>
@@ -90,17 +94,18 @@ $('#list').innerHTML=ARTICLES.map((a,i)=>`
 document.addEventListener('change',e=>{if(e.target.dataset.i!==undefined){const i=+e.target.dataset.i;st[i].size=e.target.value;if(st[i].size&&!st[i].qty)st[i].qty=1;update()}});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-d]');if(!b)return;const i=+b.dataset.i;st[i].qty=Math.max(0,Math.min(9,st[i].qty+ +b.dataset.d));update()});
 $('#name').addEventListener('input',()=>{$('#nameErr').style.display='none';update()});
+$('#ini').addEventListener('input',update);
 
 function picked(){return ARTICLES.map((a,i)=>({a,...st[i]})).filter(x=>x.qty>0)}
 function clean(n){return n.replace(/[|#:]/g,' ').replace(/\s+/g,' ').trim()}
 function update(){
   ARTICLES.forEach((a,i)=>{$('#q'+i).textContent=st[i].qty;$('#c'+i).classList.toggle('on',st[i].qty>0)});
-  const p=picked(),missing=p.filter(x=>!x.size),n=p.reduce((s,x)=>s+x.qty,0),name=clean($('#name').value);
+  const p=picked(),missing=p.filter(x=>!x.size),n=p.reduce((s,x)=>s+x.qty,0),name=clean($('#name').value),ini=clean($('#ini').value).replace(/\s/g,'').toUpperCase().slice(0,4);
   $('#sum').innerHTML=!p.length?'Noch nichts ausgewählt':missing.length?`<b>Größe fehlt</b>bei ${esc(missing.map(x=>x.a.name).join(', '))}`:`<b>${n} ${n===1?'Teil':'Teile'}</b>${p.length} ${p.length===1?'Artikel':'Artikel'}`;
   const ok=p.length&&!missing.length&&name.split(' ').length>=2;
   const send=$('#send');send.setAttribute('aria-disabled',ok?'false':'true');
   if(ok){
-    const txt=['Bestellung SG Eintracht 25','Name: '+name,...p.map(x=>`• ${x.qty}× ${x.a.name} – Größe ${x.size}`),'',`#SGE|${name}|`+p.map(x=>`${x.a.nr}:${x.size}:${x.qty}`).join('|')].join('\n');
+    const txt=['Bestellung SG Eintracht 25','Name: '+name,...(ini?['Initialen: '+ini]:[]),...p.map(x=>`• ${x.qty}× ${x.a.name} – Größe ${x.size}`),'',`#SGE|${name}|`+(ini?`INI:${ini}|`:'')+p.map(x=>`${x.a.nr}:${x.size}:${x.qty}`).join('|')].join('\n');
     send.href=`https://wa.me/${PHONE}?text=${encodeURIComponent(txt)}`;
   }else send.href='#';
 }
