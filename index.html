@@ -26,7 +26,8 @@ h2{font-size:20px;margin:0 0 10px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px;transition:border-color .15s,box-shadow .15s}
 .card.on{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc) inset}
 .card h3{margin:0;font-size:17px;line-height:1.25}
-.card .meta{font-size:13px;color:var(--mute);margin:2px 0 12px}
+.card .meta{font-size:13px;color:var(--mute);margin:2px 0 6px}
+.card .price{font-size:14px;margin:0 0 12px;display:flex;justify-content:space-between;gap:8px}.card .price em{font-style:normal}.card .price span{font-weight:700;white-space:nowrap}
 .ctl{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .ctl select{flex:1 1 140px;min-height:44px;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:0 8px}
 .step{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden}
@@ -83,13 +84,15 @@ h2{font-size:20px;margin:0 0 10px}
 const PHONE='4916095129791';
 const SZ=['S','M','L','XL','XXL','3XL','4XL'];
 const ARTICLES=[
-  {nr:'6124-852',name:'T-Shirt Iconic',color:'852 anthra light/mintgrün/soft grey',sizes:[...SZ,'164'],g:['spieler','sge']},
-  {nr:'6324-852',name:'Polo Iconic',color:'852 anthra light/mintgrün/soft grey',sizes:SZ,g:['sge']},
-  {nr:'9324-852',name:'Polyesterjacke Iconic',color:'852 anthra light/mintgrün/soft grey',sizes:SZ,g:['spieler']},
-  {nr:'9223-820',name:'Polyesterhose Power',color:'820',sizes:SZ,g:['spieler']},
-  {nr:'6324-808',name:'Polo Iconic',color:'808',sizes:SZ,g:['ssv']},
-  {nr:'6722-808',name:'Kapuzensweat Performance',color:'808',sizes:SZ,g:['ssv']}
+  {nr:'6124-852',name:'T-Shirt Iconic',color:'852 anthra light/mintgrün/soft grey',sizes:[...SZ,'164'],g:['spieler','sge'],eur:{spieler:10,sge:10}},
+  {nr:'6324-852',name:'Polo Iconic',color:'852 anthra light/mintgrün/soft grey',sizes:SZ,g:['sge'],eur:{sge:10}},
+  {nr:'9324-852',name:'Polyesterjacke Iconic',color:'852 anthra light/mintgrün/soft grey',sizes:SZ,g:['spieler'],eur:{spieler:10}},
+  {nr:'9223-820',name:'Polyesterhose Power',color:'820',sizes:SZ,g:['spieler'],eur:{spieler:10}},
+  {nr:'6324-808',name:'Polo Iconic',color:'808',sizes:SZ,g:['ssv'],eur:{ssv:10}},
+  {nr:'6722-808',name:'Kapuzensweat Performance',color:'808',sizes:SZ,g:['ssv'],eur:{ssv:10}}
 ];
+const eur=(a,g)=>+((a.eur||{})[g]||0);
+const fmt=v=>v.toLocaleString('de-DE',{style:'currency',currency:'EUR'});
 const GORDER=['spieler','sge','ssv'];
 const GN={spieler:'Spieler',sge:'Vorstand SGE',ssv:'Vorstand SSV Stockum'};
 const groups=new Set();
@@ -99,10 +102,11 @@ const st={};const S=(g,i)=>st[g+'_'+i]||(st[g+'_'+i]={qty:0,size:''});
 const sel=()=>GORDER.filter(g=>groups.has(g));
 function draw(){const gs=sel();
   $('#list').innerHTML=!gs.length?'<p class="hint">Bitte zuerst oben wählen, für wen du bestellst.</p>':gs.map(g=>`
-  <h2 class="gsec">${GN[g]} <span>Artikel</span></h2>`+ARTICLES.map((a,i)=>!a.g.includes(g)?'':`
+  <h2 class="gsec">${GN[g]}</h2>`+ARTICLES.map((a,i)=>!a.g.includes(g)?'':`
   <div class="card" id="c_${g}_${i}">
     <h3>${esc(a.name)}</h3>
     <p class="meta">Art.-Nr. ${esc(a.nr)} · Farbe ${esc(a.color)}</p>
+    <p class="price"><em>${eur(a,g)?'Eigenanteil <b>'+fmt(eur(a,g))+'</b> pro Stück':'kein Eigenanteil'}</em><span id="t_${g}_${i}"></span></p>
     <div class="ctl">
       <select data-k="${g}|${i}" aria-label="Größe für ${esc(a.name)} (${GN[g]})"><option value="">Größe wählen</option>${a.sizes.map(z=>`<option${S(g,i).size===z?' selected':''}>${z}</option>`).join('')}</select>
       <div class="step"><button type="button" data-d="-1" data-k="${g}|${i}" aria-label="weniger">−</button><output id="q_${g}_${i}">0</output><button type="button" data-d="1" data-k="${g}|${i}" aria-label="mehr">+</button></div>
@@ -120,15 +124,15 @@ $('#ini').addEventListener('input',update);
 function picked(){const out=[];for(const g of sel())ARTICLES.forEach((a,i)=>{if(!a.g.includes(g))return;const x=S(g,i);if(x.qty>0)out.push({g,a,...x})});return out}
 function clean(n){return n.replace(/[|#:]/g,' ').replace(/\s+/g,' ').trim()}
 function update(){
-  for(const g of sel())ARTICLES.forEach((a,i)=>{const q=$(`#q_${g}_${i}`);if(!q)return;q.textContent=S(g,i).qty;$(`#c_${g}_${i}`).classList.toggle('on',S(g,i).qty>0)});
-  const p=picked(),missing=p.filter(x=>!x.size),n=p.reduce((s,x)=>s+x.qty,0),name=clean($('#name').value),ini=clean($('#ini').value).replace(/\s/g,'').toUpperCase().slice(0,4);
-  $('#sum').innerHTML=!groups.size?'Gruppe wählen':!p.length?'Noch nichts ausgewählt':missing.length?`<b>Größe fehlt</b>bei ${esc(missing.map(x=>x.a.name).join(', '))}`:`<b>${n} ${n===1?'Teil':'Teile'}</b>${p.length} Artikel`;
+  for(const g of sel())ARTICLES.forEach((a,i)=>{const q=$(`#q_${g}_${i}`);if(!q)return;q.textContent=S(g,i).qty;const t=$(`#t_${g}_${i}`);if(t)t.textContent=S(g,i).qty&&eur(a,g)?'= '+fmt(S(g,i).qty*eur(a,g)):'';$(`#c_${g}_${i}`).classList.toggle('on',S(g,i).qty>0)});
+  const p=picked(),missing=p.filter(x=>!x.size),n=p.reduce((s,x)=>s+x.qty,0),tot=p.reduce((s,x)=>s+x.qty*eur(x.a,x.g),0),name=clean($('#name').value),ini=clean($('#ini').value).replace(/\s/g,'').toUpperCase().slice(0,4);
+  $('#sum').innerHTML=!groups.size?'Gruppe wählen':!p.length?'Noch nichts ausgewählt':missing.length?`<b>Größe fehlt</b>bei ${esc(missing.map(x=>x.a.name).join(', '))}`:`<b>Eigenanteil ${fmt(tot)}</b>${n} ${n===1?'Teil':'Teile'}`;
   const ok=p.length&&!missing.length&&name.split(' ').length>=2;
   const send=$('#send');send.setAttribute('aria-disabled',ok?'false':'true');
   if(ok){
     const gs=sel().filter(g=>p.some(x=>x.g===g));
     const txt=['Bestellung SG Eintracht 25','Name: '+name,...(ini?['Initialen: '+ini]:[]),
-      ...gs.flatMap(g=>['',GN[g]+':',...p.filter(x=>x.g===g).map(x=>`• ${x.qty}× ${x.a.name} – Größe ${x.size}`)]),'',
+      ...gs.flatMap(g=>['',GN[g]+':',...p.filter(x=>x.g===g).map(x=>`• ${x.qty}× ${x.a.name} – Größe ${x.size}`+(eur(x.a,x.g)?` (${fmt(x.qty*eur(x.a,x.g))})`:''))]),'','Eigenanteil gesamt: '+fmt(tot),'',
       ...gs.map(g=>`#SGE|${name}|GRP:${g}|`+(ini?`INI:${ini}|`:'')+p.filter(x=>x.g===g).map(x=>`${x.a.nr}:${x.size}:${x.qty}`).join('|'))].join('\n');
     send.href=`https://wa.me/${PHONE}?text=${encodeURIComponent(txt)}`;
   }else send.href='#';
