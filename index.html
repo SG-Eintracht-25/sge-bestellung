@@ -41,12 +41,16 @@ h2{font-size:20px;margin:0 0 10px}
 .err{color:var(--acc);font-size:14px;margin:-14px 0 18px;display:none}
 .done{display:none;background:var(--accs);border-radius:10px;padding:14px;margin-top:16px;font-size:15px}
 .note{font-size:13px;color:var(--mute)}
+.tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:22px}
+.tabs button{min-height:56px;border:1px solid var(--line);background:var(--card);border-radius:10px;font-weight:500;font-size:15px;line-height:1.2;padding:6px;cursor:pointer;color:var(--ink)}
+.tabs button[aria-selected=true]{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:700}
+.hint{color:var(--mute);background:var(--card);border:2px dashed var(--line);border-radius:10px;padding:18px;text-align:center}
 </style>
 </head>
 <body>
 <main>
   <h1>Teamausstattung bestellen</h1>
-  <p class="intro">SG Eintracht 25 · Name eintragen, Artikel und Größe wählen, dann per WhatsApp an Jan abschicken.</p>
+  <p class="intro">SG Eintracht 25 · Name eintragen, Gruppe wählen, Artikel und Größe aussuchen, dann per WhatsApp an Jan abschicken.</p>
 
   <label class="f">Dein Name (Vor- und Nachname)
     <input type="text" id="name" autocomplete="name" placeholder="z. B. Max Muster">
@@ -57,8 +61,14 @@ h2{font-size:20px;margin:0 0 10px}
     <input type="text" id="ini" maxlength="4" autocapitalize="characters" autocomplete="off" placeholder="z. B. MM" style="text-transform:uppercase;max-width:140px">
   </label>
 
-  <h2>Artikel</h2>
-  <div id="list"></div>
+  <h2>Für wen bestellst du?</h2>
+  <div class="tabs" role="tablist" id="tabs">
+    <button role="tab" data-g="spieler" aria-selected="false">Spieler</button>
+    <button role="tab" data-g="sge" aria-selected="false">Vorstand SGE</button>
+    <button role="tab" data-g="ssv" aria-selected="false">Vorstand SSV Stockum</button>
+  </div>
+  <h2 id="artH" hidden>Artikel</h2>
+  <div id="list"><p class="hint">Bitte zuerst oben deine Gruppe wählen.</p></div>
   <p class="note">Farbe ist je Artikel fest vorgegeben. Wer einen Artikel in zwei Größen braucht, schickt einfach eine zweite Bestellung.</p>
   <div class="done" id="done">WhatsApp sollte sich jetzt mit deiner Bestellung geöffnet haben – dort nur noch auf <b>Senden</b> tippen. Falls nicht: Nachricht an +49 160 95129791.</div>
 </main>
@@ -70,18 +80,21 @@ h2{font-size:20px;margin:0 0 10px}
 
 <script>{
 const PHONE='4916095129791';
+const SZ=['S','M','L','XL','XXL','3XL','4XL'];
 const ARTICLES=[
-  {nr:'6124-852',name:'T-Shirt Iconic',color:'852 anthra light/mintgrün/soft grey',sizes:['S','M','L','XL','XXL','3XL','4XL','164']},
-  {nr:'6324-852',name:'Polo Iconic',color:'852 anthra light/mintgrün/soft grey',sizes:['S','M','L','XL','XXL','3XL','4XL']},
-  {nr:'9324-852',name:'Polyesterjacke Iconic',color:'852 anthra light/mintgrün/soft grey',sizes:['S','M','L','XL','XXL','3XL','4XL']},
-  {nr:'9223-820',name:'Polyesterhose Power',color:'820',sizes:['S','M','L','XL','XXL','3XL','4XL']},
-  {nr:'6722-808',name:'Kapuzensweat Performance – Vorstand SSV',color:'808',sizes:['S','M','L','XL','XXL','3XL','4XL']}
+  {nr:'6124-852',name:'T-Shirt Iconic',color:'852 anthra light/mintgrün/soft grey',sizes:[...SZ,'164'],g:['spieler','sge']},
+  {nr:'6324-852',name:'Polo Iconic',color:'852 anthra light/mintgrün/soft grey',sizes:SZ,g:['sge']},
+  {nr:'9324-852',name:'Polyesterjacke Iconic',color:'852 anthra light/mintgrün/soft grey',sizes:SZ,g:['spieler']},
+  {nr:'9223-820',name:'Polyesterhose Power',color:'820',sizes:SZ,g:['spieler']},
+  {nr:'6324-808',name:'Polo Iconic',color:'808',sizes:SZ,g:['ssv']},
+  {nr:'6722-808',name:'Kapuzensweat Performance',color:'808',sizes:SZ,g:['ssv']}
 ];
+let group='';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const st=ARTICLES.map(()=>({qty:0,size:''}));
-
-$('#list').innerHTML=ARTICLES.map((a,i)=>`
+const GN={spieler:'Spieler',sge:'Vorstand SGE',ssv:'Vorstand SSV Stockum'};
+function draw(){$('#artH').hidden=!group;$('#list').innerHTML=!group?'<p class="hint">Bitte zuerst oben deine Gruppe wählen.</p>':ARTICLES.map((a,i)=>!a.g.includes(group)?'':`
   <div class="card" id="c${i}">
     <h3>${esc(a.name)}</h3>
     <p class="meta">Art.-Nr. ${esc(a.nr)} · Farbe ${esc(a.color)}</p>
@@ -89,23 +102,26 @@ $('#list').innerHTML=ARTICLES.map((a,i)=>`
       <select data-i="${i}" aria-label="Größe für ${esc(a.name)}"><option value="">Größe wählen</option>${a.sizes.map(s=>`<option>${s}</option>`).join('')}</select>
       <div class="step"><button type="button" data-d="-1" data-i="${i}" aria-label="weniger">−</button><output id="q${i}">0</output><button type="button" data-d="1" data-i="${i}" aria-label="mehr">+</button></div>
     </div>
-  </div>`).join('');
+  </div>`).join('');}
+document.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{group=b.dataset.g;
+  document.querySelectorAll('[data-g]').forEach(x=>x.setAttribute('aria-selected',x===b));
+  st.forEach(x=>{x.qty=0;x.size=''});draw();update()});
 
 document.addEventListener('change',e=>{if(e.target.dataset.i!==undefined){const i=+e.target.dataset.i;st[i].size=e.target.value;if(st[i].size&&!st[i].qty)st[i].qty=1;update()}});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-d]');if(!b)return;const i=+b.dataset.i;st[i].qty=Math.max(0,Math.min(9,st[i].qty+ +b.dataset.d));update()});
 $('#name').addEventListener('input',()=>{$('#nameErr').style.display='none';update()});
 $('#ini').addEventListener('input',update);
 
-function picked(){return ARTICLES.map((a,i)=>({a,...st[i]})).filter(x=>x.qty>0)}
+function picked(){return ARTICLES.map((a,i)=>({a,...st[i]})).filter(x=>x.qty>0&&x.a.g.includes(group))}
 function clean(n){return n.replace(/[|#:]/g,' ').replace(/\s+/g,' ').trim()}
 function update(){
-  ARTICLES.forEach((a,i)=>{$('#q'+i).textContent=st[i].qty;$('#c'+i).classList.toggle('on',st[i].qty>0)});
+  ARTICLES.forEach((a,i)=>{const q=$('#q'+i);if(!q)return;q.textContent=st[i].qty;$('#c'+i).classList.toggle('on',st[i].qty>0)});
   const p=picked(),missing=p.filter(x=>!x.size),n=p.reduce((s,x)=>s+x.qty,0),name=clean($('#name').value),ini=clean($('#ini').value).replace(/\s/g,'').toUpperCase().slice(0,4);
-  $('#sum').innerHTML=!p.length?'Noch nichts ausgewählt':missing.length?`<b>Größe fehlt</b>bei ${esc(missing.map(x=>x.a.name).join(', '))}`:`<b>${n} ${n===1?'Teil':'Teile'}</b>${p.length} ${p.length===1?'Artikel':'Artikel'}`;
+  $('#sum').innerHTML=!group?'Gruppe wählen':!p.length?'Noch nichts ausgewählt':missing.length?`<b>Größe fehlt</b>bei ${esc(missing.map(x=>x.a.name).join(', '))}`:`<b>${n} ${n===1?'Teil':'Teile'}</b>${p.length} ${p.length===1?'Artikel':'Artikel'}`;
   const ok=p.length&&!missing.length&&name.split(' ').length>=2;
   const send=$('#send');send.setAttribute('aria-disabled',ok?'false':'true');
   if(ok){
-    const txt=['Bestellung SG Eintracht 25','Name: '+name,...(ini?['Initialen: '+ini]:[]),...p.map(x=>`• ${x.qty}× ${x.a.name} – Größe ${x.size}`),'',`#SGE|${name}|`+(ini?`INI:${ini}|`:'')+p.map(x=>`${x.a.nr}:${x.size}:${x.qty}`).join('|')].join('\n');
+    const txt=['Bestellung SG Eintracht 25','Gruppe: '+GN[group],'Name: '+name,...(ini?['Initialen: '+ini]:[]),...p.map(x=>`• ${x.qty}× ${x.a.name} – Größe ${x.size}`),'',`#SGE|${name}|GRP:${group}|`+(ini?`INI:${ini}|`:'')+p.map(x=>`${x.a.nr}:${x.size}:${x.qty}`).join('|')].join('\n');
     send.href=`https://wa.me/${PHONE}?text=${encodeURIComponent(txt)}`;
   }else send.href='#';
 }
