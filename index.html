@@ -28,6 +28,12 @@ h2{font-size:20px;margin:0 0 10px}
 .card .top{display:flex;gap:12px;align-items:flex-start}.card .top>div{flex:1}
 .card img{width:96px;height:96px;object-fit:contain;background:#fff;border-radius:8px;border:1px solid var(--line);flex:none;cursor:zoom-in}
 .zoom{position:fixed;inset:0;background:#000c;display:grid;place-items:center;z-index:20;padding:16px}.zoom[hidden]{display:none}.zoom img{max-width:100%;max-height:90vh;background:#fff;border-radius:10px}
+.sizelink{margin:-10px 0 18px;font-size:15px}.sizelink button{border:0;background:none;color:var(--acc);font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;padding:8px 2px;min-height:44px}
+.sbox{background:var(--card);color:var(--ink);border-radius:12px;padding:16px 14px;-webkit-tap-highlight-color:transparent;width:min(520px,100%);max-height:90vh;overflow:auto}
+.sbox h2{margin:0 0 4px}.scroll{overflow-x:auto}
+.sbox table{width:100%;border-collapse:collapse;font-size:14px}.sbox th,.sbox td{padding:8px 3px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.sbox th:first-child,.sbox td:first-child{text-align:left;font-weight:700}.sbox th{font-size:13px;color:var(--mute);font-weight:500;white-space:normal}
+.closeS{margin-top:14px;width:100%;min-height:48px;border-radius:10px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);font-weight:700;font-size:16px;cursor:pointer}
 .card h3{margin:0;font-size:17px;line-height:1.25}
 .card .meta{font-size:13px;color:var(--mute);margin:2px 0 6px}
 .card .price{font-size:14px;margin:0 0 12px;display:flex;justify-content:space-between;gap:8px}.card .price em{font-style:normal}.card .price span{font-weight:700;white-space:nowrap}
@@ -73,11 +79,31 @@ h2{font-size:20px;margin:0 0 10px}
     <button type="button" data-g="sge" aria-pressed="false">Vorstand SGE</button>
     <button type="button" data-g="ssv" aria-pressed="false">Vorstand SSV Stockum</button>
   </div>
+  <p class="sizelink">Welche Größe passt? <button type="button" id="openSize">Größentabelle</button></p>
   <div id="list"><p class="hint">Bitte zuerst oben deine Gruppe wählen.</p></div>
   <p class="note">Farbe ist je Artikel fest vorgegeben. Wer einen Artikel in zwei Größen braucht, schickt einfach eine zweite Bestellung.</p>
   <div class="done" id="done">WhatsApp sollte sich jetzt mit deiner Bestellung geöffnet haben – dort nur noch auf <b>Senden</b> tippen. Falls nicht: Nachricht an +49 160 95129791.</div>
 </main>
 <div class="zoom" id="zoom" hidden><img alt=""></div>
+<div class="zoom" id="sizes" hidden role="dialog" aria-modal="true" aria-labelledby="sizesT">
+  <div class="sbox">
+    <h2 id="sizesT">Größentabelle JAKO</h2>
+    <p class="note" style="margin:0 0 10px">Gilt für alle Artikel. Körpermaße in cm – am Körper messen, nicht am Kleidungsstück.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Größe</th><th>Brust</th><th>Taille</th><th>Hüfte</th><th>Körper</th></tr></thead>
+      <tbody>
+        <tr><td>S</td><td>85–91</td><td>71–77</td><td>94–97</td><td>167–171</td></tr>
+        <tr><td>M</td><td>92–97</td><td>78–84</td><td>98–101</td><td>172–176</td></tr>
+        <tr><td>L</td><td>98–103</td><td>85–91</td><td>102–105</td><td>177–182</td></tr>
+        <tr><td>XL</td><td>104–109</td><td>92–98</td><td>106–109</td><td>183–187</td></tr>
+        <tr><td>XXL</td><td>110–115</td><td>99–105</td><td>110–113</td><td>187–192</td></tr>
+        <tr><td>3XL</td><td>116–121</td><td>106–112</td><td>114–117</td><td>188–193</td></tr>
+        <tr><td>4XL</td><td>122–127</td><td>113–119</td><td>118–121</td><td>189–194</td></tr>
+      </tbody></table></div>
+    <p class="note" style="margin:10px 0 0">Kindergröße 164 = ca. 164 cm Körpergröße. Zwischen zwei Größen? Lieber die größere nehmen.</p>
+    <button type="button" class="closeS" id="closeSize">Schließen</button>
+  </div>
+</div>
 
 <div class="bar"><div>
   <span class="sum" id="sum">Noch nichts ausgewählt</span>
@@ -122,7 +148,10 @@ document.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{const g=b.datase
   b.setAttribute('aria-pressed',groups.has(g));draw();update()});
 
 document.addEventListener('change',e=>{const k=e.target.dataset.k;if(k===undefined)return;const [g,i]=k.split('|');const x=S(g,i);x.size=e.target.value;if(x.size&&!x.qty)x.qty=1;update()});
-document.addEventListener('click',e=>{const im=e.target.closest('.card img');if(im){const z=$('#zoom');z.querySelector('img').src=im.src;z.querySelector('img').alt=im.alt;z.hidden=false;return}if(e.target.closest('#zoom')){$('#zoom').hidden=true;return}const b=e.target.closest('[data-d]');if(!b)return;const [g,i]=b.dataset.k.split('|');const x=S(g,i);x.qty=Math.max(0,Math.min(9,x.qty+ +b.dataset.d));update()});
+document.addEventListener('click',e=>{const im=e.target.closest('.card img');if(im){const z=$('#zoom');z.querySelector('img').src=im.src;z.querySelector('img').alt=im.alt;z.hidden=false;return}if(e.target.closest('#zoom')){$('#zoom').hidden=true;return}
+  if(e.target.closest('#openSize')){$('#sizes').hidden=false;$('#closeSize').focus();return}
+  if(e.target.id==='sizes'||e.target.closest('#closeSize')){$('#sizes').hidden=true;$('#openSize').focus();return}const b=e.target.closest('[data-d]');if(!b)return;const [g,i]=b.dataset.k.split('|');const x=S(g,i);x.qty=Math.max(0,Math.min(9,x.qty+ +b.dataset.d));update()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){$('#sizes').hidden=true;$('#zoom').hidden=true}});
 $('#name').addEventListener('input',()=>{$('#nameErr').style.display='none';update()});
 $('#ini').addEventListener('input',update);
 
