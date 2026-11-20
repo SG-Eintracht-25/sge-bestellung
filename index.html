@@ -43,7 +43,8 @@ h2{font-size:20px;margin:0 0 10px}
 .note{font-size:13px;color:var(--mute)}
 .tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:22px}
 .tabs button{min-height:56px;border:1px solid var(--line);background:var(--card);border-radius:10px;font-weight:500;font-size:15px;line-height:1.2;padding:6px;cursor:pointer;color:var(--ink)}
-.tabs button[aria-selected=true]{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:700}
+.tabs button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:700}
+.gsec{margin:0 0 8px;padding-top:6px;font-size:20px;display:flex;justify-content:space-between;align-items:baseline}.gsec span{font-size:13px;color:var(--mute);font-weight:400}
 .hint{color:var(--mute);background:var(--card);border:2px dashed var(--line);border-radius:10px;padding:18px;text-align:center}
 </style>
 </head>
@@ -62,12 +63,12 @@ h2{font-size:20px;margin:0 0 10px}
   </label>
 
   <h2>Für wen bestellst du?</h2>
-  <div class="tabs" role="tablist" id="tabs">
-    <button role="tab" data-g="spieler" aria-selected="false">Spieler</button>
-    <button role="tab" data-g="sge" aria-selected="false">Vorstand SGE</button>
-    <button role="tab" data-g="ssv" aria-selected="false">Vorstand SSV Stockum</button>
+  <p class="note" style="margin:-6px 0 10px">Mehrere möglich – z. B. Spieler und Vorstand.</p>
+  <div class="tabs" role="group" id="tabs">
+    <button type="button" data-g="spieler" aria-pressed="false">Spieler</button>
+    <button type="button" data-g="sge" aria-pressed="false">Vorstand SGE</button>
+    <button type="button" data-g="ssv" aria-pressed="false">Vorstand SSV Stockum</button>
   </div>
-  <h2 id="artH" hidden>Artikel</h2>
   <div id="list"><p class="hint">Bitte zuerst oben deine Gruppe wählen.</p></div>
   <p class="note">Farbe ist je Artikel fest vorgegeben. Wer einen Artikel in zwei Größen braucht, schickt einfach eine zweite Bestellung.</p>
   <div class="done" id="done">WhatsApp sollte sich jetzt mit deiner Bestellung geöffnet haben – dort nur noch auf <b>Senden</b> tippen. Falls nicht: Nachricht an +49 160 95129791.</div>
@@ -89,39 +90,46 @@ const ARTICLES=[
   {nr:'6324-808',name:'Polo Iconic',color:'808',sizes:SZ,g:['ssv']},
   {nr:'6722-808',name:'Kapuzensweat Performance',color:'808',sizes:SZ,g:['ssv']}
 ];
-let group='';
+const GORDER=['spieler','sge','ssv'];
+const GN={spieler:'Spieler',sge:'Vorstand SGE',ssv:'Vorstand SSV Stockum'};
+const groups=new Set();
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const st=ARTICLES.map(()=>({qty:0,size:''}));
-const GN={spieler:'Spieler',sge:'Vorstand SGE',ssv:'Vorstand SSV Stockum'};
-function draw(){$('#artH').hidden=!group;$('#list').innerHTML=!group?'<p class="hint">Bitte zuerst oben deine Gruppe wählen.</p>':ARTICLES.map((a,i)=>!a.g.includes(group)?'':`
-  <div class="card" id="c${i}">
+const st={};const S=(g,i)=>st[g+'_'+i]||(st[g+'_'+i]={qty:0,size:''});
+const sel=()=>GORDER.filter(g=>groups.has(g));
+function draw(){const gs=sel();
+  $('#list').innerHTML=!gs.length?'<p class="hint">Bitte zuerst oben wählen, für wen du bestellst.</p>':gs.map(g=>`
+  <h2 class="gsec">${GN[g]} <span>Artikel</span></h2>`+ARTICLES.map((a,i)=>!a.g.includes(g)?'':`
+  <div class="card" id="c_${g}_${i}">
     <h3>${esc(a.name)}</h3>
     <p class="meta">Art.-Nr. ${esc(a.nr)} · Farbe ${esc(a.color)}</p>
     <div class="ctl">
-      <select data-i="${i}" aria-label="Größe für ${esc(a.name)}"><option value="">Größe wählen</option>${a.sizes.map(s=>`<option>${s}</option>`).join('')}</select>
-      <div class="step"><button type="button" data-d="-1" data-i="${i}" aria-label="weniger">−</button><output id="q${i}">0</output><button type="button" data-d="1" data-i="${i}" aria-label="mehr">+</button></div>
+      <select data-k="${g}|${i}" aria-label="Größe für ${esc(a.name)} (${GN[g]})"><option value="">Größe wählen</option>${a.sizes.map(z=>`<option${S(g,i).size===z?' selected':''}>${z}</option>`).join('')}</select>
+      <div class="step"><button type="button" data-d="-1" data-k="${g}|${i}" aria-label="weniger">−</button><output id="q_${g}_${i}">0</output><button type="button" data-d="1" data-k="${g}|${i}" aria-label="mehr">+</button></div>
     </div>
-  </div>`).join('');}
-document.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{group=b.dataset.g;
-  document.querySelectorAll('[data-g]').forEach(x=>x.setAttribute('aria-selected',x===b));
-  st.forEach(x=>{x.qty=0;x.size=''});draw();update()});
+  </div>`).join('')).join('');}
+document.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{const g=b.dataset.g;
+  if(groups.has(g)){groups.delete(g);ARTICLES.forEach((a,i)=>{delete st[g+'_'+i]})}else groups.add(g);
+  b.setAttribute('aria-pressed',groups.has(g));draw();update()});
 
-document.addEventListener('change',e=>{if(e.target.dataset.i!==undefined){const i=+e.target.dataset.i;st[i].size=e.target.value;if(st[i].size&&!st[i].qty)st[i].qty=1;update()}});
-document.addEventListener('click',e=>{const b=e.target.closest('[data-d]');if(!b)return;const i=+b.dataset.i;st[i].qty=Math.max(0,Math.min(9,st[i].qty+ +b.dataset.d));update()});
+document.addEventListener('change',e=>{const k=e.target.dataset.k;if(k===undefined)return;const [g,i]=k.split('|');const x=S(g,i);x.size=e.target.value;if(x.size&&!x.qty)x.qty=1;update()});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-d]');if(!b)return;const [g,i]=b.dataset.k.split('|');const x=S(g,i);x.qty=Math.max(0,Math.min(9,x.qty+ +b.dataset.d));update()});
 $('#name').addEventListener('input',()=>{$('#nameErr').style.display='none';update()});
 $('#ini').addEventListener('input',update);
 
-function picked(){return ARTICLES.map((a,i)=>({a,...st[i]})).filter(x=>x.qty>0&&x.a.g.includes(group))}
+function picked(){const out=[];for(const g of sel())ARTICLES.forEach((a,i)=>{if(!a.g.includes(g))return;const x=S(g,i);if(x.qty>0)out.push({g,a,...x})});return out}
 function clean(n){return n.replace(/[|#:]/g,' ').replace(/\s+/g,' ').trim()}
 function update(){
-  ARTICLES.forEach((a,i)=>{const q=$('#q'+i);if(!q)return;q.textContent=st[i].qty;$('#c'+i).classList.toggle('on',st[i].qty>0)});
+  for(const g of sel())ARTICLES.forEach((a,i)=>{const q=$(`#q_${g}_${i}`);if(!q)return;q.textContent=S(g,i).qty;$(`#c_${g}_${i}`).classList.toggle('on',S(g,i).qty>0)});
   const p=picked(),missing=p.filter(x=>!x.size),n=p.reduce((s,x)=>s+x.qty,0),name=clean($('#name').value),ini=clean($('#ini').value).replace(/\s/g,'').toUpperCase().slice(0,4);
-  $('#sum').innerHTML=!group?'Gruppe wählen':!p.length?'Noch nichts ausgewählt':missing.length?`<b>Größe fehlt</b>bei ${esc(missing.map(x=>x.a.name).join(', '))}`:`<b>${n} ${n===1?'Teil':'Teile'}</b>${p.length} ${p.length===1?'Artikel':'Artikel'}`;
+  $('#sum').innerHTML=!groups.size?'Gruppe wählen':!p.length?'Noch nichts ausgewählt':missing.length?`<b>Größe fehlt</b>bei ${esc(missing.map(x=>x.a.name).join(', '))}`:`<b>${n} ${n===1?'Teil':'Teile'}</b>${p.length} Artikel`;
   const ok=p.length&&!missing.length&&name.split(' ').length>=2;
   const send=$('#send');send.setAttribute('aria-disabled',ok?'false':'true');
   if(ok){
-    const txt=['Bestellung SG Eintracht 25','Gruppe: '+GN[group],'Name: '+name,...(ini?['Initialen: '+ini]:[]),...p.map(x=>`• ${x.qty}× ${x.a.name} – Größe ${x.size}`),'',`#SGE|${name}|GRP:${group}|`+(ini?`INI:${ini}|`:'')+p.map(x=>`${x.a.nr}:${x.size}:${x.qty}`).join('|')].join('\n');
+    const gs=sel().filter(g=>p.some(x=>x.g===g));
+    const txt=['Bestellung SG Eintracht 25','Name: '+name,...(ini?['Initialen: '+ini]:[]),
+      ...gs.flatMap(g=>['',GN[g]+':',...p.filter(x=>x.g===g).map(x=>`• ${x.qty}× ${x.a.name} – Größe ${x.size}`)]),'',
+      ...gs.map(g=>`#SGE|${name}|GRP:${g}|`+(ini?`INI:${ini}|`:'')+p.filter(x=>x.g===g).map(x=>`${x.a.nr}:${x.size}:${x.qty}`).join('|'))].join('\n');
     send.href=`https://wa.me/${PHONE}?text=${encodeURIComponent(txt)}`;
   }else send.href='#';
 }
@@ -129,7 +137,7 @@ $('#send').addEventListener('click',e=>{
   if($('#send').getAttribute('aria-disabled')==='true'){e.preventDefault();if(clean($('#name').value).split(' ').length<2){$('#nameErr').style.display='block';$('#name').focus()}return}
   $('#done').style.display='block';
 });
-update();
+draw();update();
 }</script>
 </body>
 </html>
