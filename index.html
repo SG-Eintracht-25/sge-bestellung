@@ -34,6 +34,8 @@ h2{font-size:20px;margin:0 0 10px}
 .sbox table{width:100%;border-collapse:collapse;font-size:14px}.sbox th,.sbox td{padding:8px 3px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 .sbox th:first-child,.sbox td:first-child{text-align:left;font-weight:700}.sbox th{font-size:13px;color:var(--mute);font-weight:500;white-space:normal}
 .closeS{margin-top:14px;width:100%;min-height:48px;border-radius:10px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);font-weight:700;font-size:16px;cursor:pointer}
+.ctl.extra{margin-top:8px;flex-wrap:nowrap}.ctl.extra select{flex:1 1 0;min-width:0}.rm{width:44px;height:44px;border:1px solid var(--line);background:var(--card);border-radius:8px;font-size:20px;cursor:pointer;color:var(--mute)}
+.more{margin-top:8px;border:0;background:none;color:var(--acc);font:inherit;font-size:15px;font-weight:700;padding:8px 0;min-height:44px;cursor:pointer}.more[hidden]{display:none}
 .card h3{margin:0;font-size:17px;line-height:1.25}
 .card .meta{font-size:13px;color:var(--mute);margin:2px 0 6px}
 .card .price{font-size:14px;margin:0 0 12px;display:flex;justify-content:space-between;gap:8px}.card .price em{font-style:normal}.card .price span{font-weight:700;white-space:nowrap}
@@ -81,7 +83,7 @@ h2{font-size:20px;margin:0 0 10px}
   </div>
   <p class="sizelink">Welche Größe passt? <button type="button" id="openSize">Größentabelle</button></p>
   <div id="list"><p class="hint">Bitte zuerst oben deine Gruppe wählen.</p></div>
-  <p class="note">Farbe ist je Artikel fest vorgegeben. Wer einen Artikel in zwei Größen braucht, schickt einfach eine zweite Bestellung.</p>
+  <p class="note">Farbe ist je Artikel fest vorgegeben. Brauchst du einen Artikel in zwei Größen? Nach der ersten Größe auf „+ weitere Größe“ tippen.</p>
   <div class="done" id="done">WhatsApp sollte sich jetzt mit deiner Bestellung geöffnet haben – dort nur noch auf <b>Senden</b> tippen. Falls nicht: Nachricht an +49 160 95129791.</div>
 </main>
 <div class="zoom" id="zoom" hidden><img alt=""></div>
@@ -128,7 +130,8 @@ const GN={spieler:'Spieler',sge:'Vorstand SGE',ssv:'Vorstand SSV Stockum'};
 const groups=new Set();
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const st={};const S=(g,i)=>st[g+'_'+i]||(st[g+'_'+i]={qty:0,size:''});
+const st={};const R=(g,i)=>st[g+'_'+i]||(st[g+'_'+i]=[{qty:0,size:''}]);const S=(g,i,r)=>R(g,i)[+r||0];
+const qtyOf=(g,i)=>R(g,i).reduce((s,x)=>s+x.qty,0);
 const sel=()=>GORDER.filter(g=>groups.has(g));
 function draw(){const gs=sel();
   $('#list').innerHTML=!gs.length?'<p class="hint">Bitte zuerst oben wählen, für wen du bestellst.</p>':gs.map(g=>`
@@ -138,27 +141,33 @@ function draw(){const gs=sel();
     <div><h3>${esc(a.name)}</h3>
     <p class="meta">Art.-Nr. ${esc(a.nr)} · Farbe ${esc(a.color)}</p>
     <p class="price"><em>${eur(a,g)?'Preis <b>'+fmt(eur(a,g))+'</b> pro Stück':''}</em><span id="t_${g}_${i}"></span></p></div></div>
-    <div class="ctl">
-      <select data-k="${g}|${i}" aria-label="Größe für ${esc(a.name)} (${GN[g]})"><option value="">Größe wählen</option>${a.sizes.map(z=>`<option${S(g,i).size===z?' selected':''}>${z}</option>`).join('')}</select>
-      <div class="step"><button type="button" data-d="-1" data-k="${g}|${i}" aria-label="weniger">−</button><output id="q_${g}_${i}">0</output><button type="button" data-d="1" data-k="${g}|${i}" aria-label="mehr">+</button></div>
-    </div>
+    ${R(g,i).map((x,r)=>`<div class="ctl${r?' extra':''}">
+      <select data-k="${g}|${i}|${r}" aria-label="Größe für ${esc(a.name)} (${GN[g]})${r?' – weitere Größe':''}"><option value="">Größe wählen</option>${a.sizes.map(z=>`<option${x.size===z?' selected':''}>${z}</option>`).join('')}</select>
+      <div class="step"><button type="button" data-d="-1" data-k="${g}|${i}|${r}" aria-label="weniger">−</button><output id="q_${g}_${i}_${r}">${x.qty}</output><button type="button" data-d="1" data-k="${g}|${i}|${r}" aria-label="mehr">+</button></div>
+      ${r?`<button type="button" class="rm" data-rm="${g}|${i}|${r}" aria-label="Diese Größe entfernen">×</button>`:''}
+    </div>`).join('')}
+    <button type="button" class="more" data-more="${g}|${i}" id="m_${g}_${i}" hidden>+ weitere Größe</button>
   </div>`).join('')).join('');}
 document.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{const g=b.dataset.g;
   if(groups.has(g)){groups.delete(g);ARTICLES.forEach((a,i)=>{delete st[g+'_'+i]})}else groups.add(g);
   b.setAttribute('aria-pressed',groups.has(g));draw();update()});
 
-document.addEventListener('change',e=>{const k=e.target.dataset.k;if(k===undefined)return;const [g,i]=k.split('|');const x=S(g,i);x.size=e.target.value;if(x.size&&!x.qty)x.qty=1;update()});
+document.addEventListener('change',e=>{const k=e.target.dataset.k;if(k===undefined)return;const [g,i,r]=k.split('|');const x=S(g,i,r);x.size=e.target.value;if(x.size&&!x.qty)x.qty=1;update()});
 document.addEventListener('click',e=>{const im=e.target.closest('.card img');if(im){const z=$('#zoom');z.querySelector('img').src=im.src;z.querySelector('img').alt=im.alt;z.hidden=false;return}if(e.target.closest('#zoom')){$('#zoom').hidden=true;return}
   if(e.target.closest('#openSize')){$('#sizes').hidden=false;$('#closeSize').focus();return}
-  if(e.target.id==='sizes'||e.target.closest('#closeSize')){$('#sizes').hidden=true;$('#openSize').focus();return}const b=e.target.closest('[data-d]');if(!b)return;const [g,i]=b.dataset.k.split('|');const x=S(g,i);x.qty=Math.max(0,Math.min(9,x.qty+ +b.dataset.d));update()});
+  if(e.target.id==='sizes'||e.target.closest('#closeSize')){$('#sizes').hidden=true;$('#openSize').focus();return}const mo=e.target.closest('[data-more]');if(mo){const [g,i]=mo.dataset.more.split('|');R(g,i).push({qty:0,size:''});draw();update();const sl=document.querySelector(`[data-k="${g}|${i}|${R(g,i).length-1}"]`);if(sl)sl.focus();return}
+  const rm=e.target.closest('[data-rm]');if(rm){const [g,i,r]=rm.dataset.rm.split('|');R(g,i).splice(+r,1);draw();update();return}
+  const b=e.target.closest('[data-d]');if(!b)return;const [g,i,r]=b.dataset.k.split('|');const x=S(g,i,r);x.qty=Math.max(0,Math.min(9,x.qty+ +b.dataset.d));update()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){$('#sizes').hidden=true;$('#zoom').hidden=true}});
 $('#name').addEventListener('input',()=>{$('#nameErr').style.display='none';update()});
 $('#ini').addEventListener('input',update);
 
-function picked(){const out=[];for(const g of sel())ARTICLES.forEach((a,i)=>{if(!a.g.includes(g))return;const x=S(g,i);if(x.qty>0)out.push({g,a,...x})});return out}
+function picked(){const out=[];for(const g of sel())ARTICLES.forEach((a,i)=>{if(!a.g.includes(g))return;for(const x of R(g,i))if(x.qty>0)out.push({g,a,...x})});return out}
 function clean(n){return n.replace(/[|#:]/g,' ').replace(/\s+/g,' ').trim()}
 function update(){
-  for(const g of sel())ARTICLES.forEach((a,i)=>{const q=$(`#q_${g}_${i}`);if(!q)return;q.textContent=S(g,i).qty;const t=$(`#t_${g}_${i}`);if(t)t.textContent=S(g,i).qty&&eur(a,g)?'= '+fmt(S(g,i).qty*eur(a,g)):'';$(`#c_${g}_${i}`).classList.toggle('on',S(g,i).qty>0)});
+  for(const g of sel())ARTICLES.forEach((a,i)=>{const c=$(`#c_${g}_${i}`);if(!c)return;R(g,i).forEach((x,r)=>{const q=$(`#q_${g}_${i}_${r}`);if(q)q.textContent=x.qty});
+    const n=qtyOf(g,i),t=$(`#t_${g}_${i}`);if(t)t.textContent=n&&eur(a,g)?'= '+fmt(n*eur(a,g)):'';c.classList.toggle('on',n>0);
+    const m=$(`#m_${g}_${i}`);if(m)m.hidden=!R(g,i).every(x=>x.size&&x.qty>0)});
   const p=picked(),missing=p.filter(x=>!x.size),n=p.reduce((s,x)=>s+x.qty,0),tot=p.reduce((s,x)=>s+x.qty*eur(x.a,x.g),0),name=clean($('#name').value),ini=clean($('#ini').value).replace(/\s/g,'').toUpperCase().slice(0,4);
   $('#sum').innerHTML=!groups.size?'Gruppe wählen':!p.length?'Noch nichts ausgewählt':missing.length?`<b>Größe fehlt</b>bei ${esc(missing.map(x=>x.a.name).join(', '))}`:`<b>Summe ${fmt(tot)}</b>${n} ${n===1?'Teil':'Teile'}`;
   const ok=p.length&&!missing.length&&name.split(' ').length>=2;
