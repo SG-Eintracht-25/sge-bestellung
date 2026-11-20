@@ -25,6 +25,9 @@ input[type=text]{min-height:48px;border:1px solid var(--line);border-radius:8px;
 h2{font-size:20px;margin:0 0 10px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px;transition:border-color .15s,box-shadow .15s}
 .card.on{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc) inset}
+.card .top{display:flex;gap:12px;align-items:flex-start}.card .top>div{flex:1}
+.card img{width:96px;height:96px;object-fit:contain;background:#fff;border-radius:8px;border:1px solid var(--line);flex:none;cursor:zoom-in}
+.zoom{position:fixed;inset:0;background:#000c;display:grid;place-items:center;z-index:20;padding:16px}.zoom[hidden]{display:none}.zoom img{max-width:100%;max-height:90vh;background:#fff;border-radius:10px}
 .card h3{margin:0;font-size:17px;line-height:1.25}
 .card .meta{font-size:13px;color:var(--mute);margin:2px 0 6px}
 .card .price{font-size:14px;margin:0 0 12px;display:flex;justify-content:space-between;gap:8px}.card .price em{font-style:normal}.card .price span{font-weight:700;white-space:nowrap}
@@ -74,6 +77,7 @@ h2{font-size:20px;margin:0 0 10px}
   <p class="note">Farbe ist je Artikel fest vorgegeben. Wer einen Artikel in zwei Größen braucht, schickt einfach eine zweite Bestellung.</p>
   <div class="done" id="done">WhatsApp sollte sich jetzt mit deiner Bestellung geöffnet haben – dort nur noch auf <b>Senden</b> tippen. Falls nicht: Nachricht an +49 160 95129791.</div>
 </main>
+<div class="zoom" id="zoom" hidden><img alt=""></div>
 
 <div class="bar"><div>
   <span class="sum" id="sum">Noch nichts ausgewählt</span>
@@ -104,9 +108,10 @@ function draw(){const gs=sel();
   $('#list').innerHTML=!gs.length?'<p class="hint">Bitte zuerst oben wählen, für wen du bestellst.</p>':gs.map(g=>`
   <h2 class="gsec">${GN[g]}</h2>`+ARTICLES.map((a,i)=>!a.g.includes(g)?'':`
   <div class="card" id="c_${g}_${i}">
-    <h3>${esc(a.name)}</h3>
+    <div class="top"><img src="img/${esc(a.nr)}.jpg" alt="${esc(a.name)} in Farbe ${esc(a.color)}" loading="lazy" onerror="this.remove()">
+    <div><h3>${esc(a.name)}</h3>
     <p class="meta">Art.-Nr. ${esc(a.nr)} · Farbe ${esc(a.color)}</p>
-    <p class="price"><em>${eur(a,g)?'Preis <b>'+fmt(eur(a,g))+'</b> pro Stück':''}</em><span id="t_${g}_${i}"></span></p>
+    <p class="price"><em>${eur(a,g)?'Preis <b>'+fmt(eur(a,g))+'</b> pro Stück':''}</em><span id="t_${g}_${i}"></span></p></div></div>
     <div class="ctl">
       <select data-k="${g}|${i}" aria-label="Größe für ${esc(a.name)} (${GN[g]})"><option value="">Größe wählen</option>${a.sizes.map(z=>`<option${S(g,i).size===z?' selected':''}>${z}</option>`).join('')}</select>
       <div class="step"><button type="button" data-d="-1" data-k="${g}|${i}" aria-label="weniger">−</button><output id="q_${g}_${i}">0</output><button type="button" data-d="1" data-k="${g}|${i}" aria-label="mehr">+</button></div>
@@ -117,7 +122,7 @@ document.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{const g=b.datase
   b.setAttribute('aria-pressed',groups.has(g));draw();update()});
 
 document.addEventListener('change',e=>{const k=e.target.dataset.k;if(k===undefined)return;const [g,i]=k.split('|');const x=S(g,i);x.size=e.target.value;if(x.size&&!x.qty)x.qty=1;update()});
-document.addEventListener('click',e=>{const b=e.target.closest('[data-d]');if(!b)return;const [g,i]=b.dataset.k.split('|');const x=S(g,i);x.qty=Math.max(0,Math.min(9,x.qty+ +b.dataset.d));update()});
+document.addEventListener('click',e=>{const im=e.target.closest('.card img');if(im){const z=$('#zoom');z.querySelector('img').src=im.src;z.querySelector('img').alt=im.alt;z.hidden=false;return}if(e.target.closest('#zoom')){$('#zoom').hidden=true;return}const b=e.target.closest('[data-d]');if(!b)return;const [g,i]=b.dataset.k.split('|');const x=S(g,i);x.qty=Math.max(0,Math.min(9,x.qty+ +b.dataset.d));update()});
 $('#name').addEventListener('input',()=>{$('#nameErr').style.display='none';update()});
 $('#ini').addEventListener('input',update);
 
